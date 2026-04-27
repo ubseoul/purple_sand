@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Purple Sand</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>Purple Sand</h1>
+    <p>high signal. low noise.</p>
+  </header>
+
+  <nav>
+    <button onclick="setTab('all')">All</button>
+    <button onclick="setTab('news')">News</button>
+    <button onclick="setTab('aljazeera')">Al Jazeera</button>
+    <button onclick="setTab('anime')">Anime</button>
+    <button onclick="setTab('league')">League</button>
+    <button onclick="setTab('weather')">Weather</button>
+  </nav>
+
+  <main id="feed"></main>
+
+  <script src="app.js"></script>
+</body>
+</html>
