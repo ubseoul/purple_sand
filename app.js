@@ -3,21 +3,35 @@ const state = {
   posts: [],
   visibleCount: 12,
   sourceStatus: {},
-  saved: JSON.parse(localStorage.getItem('saved') || '[]'),
-  prefs: JSON.parse(localStorage.getItem('prefs') || '{"news":1,"aljazeera":1,"anime":1,"league":1}'),
+  prefs: JSON.parse(localStorage.getItem('prefs') || '{"news":1,"aljazeera":1,"anime":1,"league":1,"nhk":1,"weather":1}'),
   interactions: JSON.parse(localStorage.getItem('interactions') || '{}'),
-  hiddenSources: JSON.parse(localStorage.getItem('hiddenSources') || '[]'),
-  isLoading: false
+  isLoading: false,
+  weatherPost: null
 };
 
 const sources = [
-  { name: 'BBC World', type: 'news', credibility: 0.91, rss: 'https://feeds.bbci.co.uk/news/world/rss.xml', homepage: 'https://www.bbc.com/news/world' },
-  { name: 'NPR News', type: 'news', credibility: 0.88, rss: 'https://feeds.npr.org/1001/rss.xml', homepage: 'https://www.npr.org/sections/news/' },
-  { name: 'Al Jazeera', type: 'aljazeera', credibility: 0.89, rss: 'https://www.aljazeera.com/xml/rss/all.xml', homepage: 'https://www.aljazeera.com' },
-  { name: 'Anime News Network', type: 'anime', credibility: 0.82, rss: 'https://www.animenewsnetwork.com/all/rss.xml?ann-edition=us', homepage: 'https://www.animenewsnetwork.com' },
-  { name: 'League of Legends', type: 'league', credibility: 0.90, rss: 'https://www.leagueoflegends.com/en-us/news/rss.xml', homepage: 'https://www.leagueoflegends.com/en-us/news/' },
-  { name: 'LoL Esports', type: 'league', credibility: 0.86, rss: 'https://lolesports.com/rss.xml', homepage: 'https://lolesports.com' }
+  { name: 'BBC World', type: 'news', credibility: 0.91, rss: 'https://feeds.bbci.co.uk/news/world/rss.xml', homepage: 'https://www.bbc.com/news/world', image: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80' },
+  { name: 'NPR News', type: 'news', credibility: 0.88, rss: 'https://feeds.npr.org/1001/rss.xml', homepage: 'https://www.npr.org/sections/news/', image: 'https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&w=1200&q=80' },
+  { name: 'Al Jazeera', type: 'aljazeera', credibility: 0.89, rss: 'https://www.aljazeera.com/xml/rss/all.xml', homepage: 'https://www.aljazeera.com', image: 'https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&w=1200&q=80' },
+  { name: 'Anime News Network', type: 'anime', credibility: 0.82, rss: 'https://www.animenewsnetwork.com/all/rss.xml?ann-edition=us', homepage: 'https://www.animenewsnetwork.com', image: 'https://images.unsplash.com/photo-1601850494422-3cf14624b0b3?auto=format&fit=crop&w=1200&q=80' },
+  { name: 'League of Legends', type: 'league', credibility: 0.90, rss: 'https://www.leagueoflegends.com/en-us/news/rss.xml', homepage: 'https://www.leagueoflegends.com/en-us/news/', image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80' },
+  { name: 'LoL Esports', type: 'league', credibility: 0.86, rss: 'https://lolesports.com/rss.xml', homepage: 'https://lolesports.com', image: 'https://images.unsplash.com/photo-1511882150382-421056c89033?auto=format&fit=crop&w=1200&q=80' }
 ];
+
+const nhkLiveCard = {
+  id: 'nhk-live',
+  title: 'NHK WORLD-JAPAN Live',
+  type: 'nhk',
+  source: 'NHK WORLD-JAPAN',
+  credibility: 0.9,
+  freshness: 1,
+  published: new Date().toISOString(),
+  url: 'https://www3.nhk.or.jp/nhkworld/en/live/',
+  summary: 'Live international news stream. Use this as the “what is happening right now?” window inside your scroll.',
+  image: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&q=80',
+  embed: 'https://www3.nhk.or.jp/nhkworld/en/live/',
+  pinned: true
+};
 
 const fallbackPosts = sources.map(source => ({
   id: `${source.name}-fallback`,
@@ -29,14 +43,15 @@ const fallbackPosts = sources.map(source => ({
   published: null,
   url: source.homepage,
   summary: `Open ${source.name} directly. Live RSS may be temporarily blocked or unavailable.`,
+  image: source.image,
   fallback: true
 }));
 
 const modeProfiles = {
-  balanced: { news: 1, aljazeera: 1, anime: 1, league: 1, credibility: 1, freshness: 1, personal: 1 },
-  focus: { news: 1.35, aljazeera: 1.25, anime: 0.45, league: 0.45, credibility: 1.35, freshness: 0.9, personal: 0.75 },
-  culture: { news: 0.65, aljazeera: 0.75, anime: 1.45, league: 1.35, credibility: 0.9, freshness: 1.05, personal: 1.25 },
-  night: { news: 0.55, aljazeera: 0.65, anime: 1.55, league: 1.3, credibility: 0.85, freshness: 0.85, personal: 1.45 }
+  balanced: { news: 1, aljazeera: 1, anime: 1, league: 1, nhk: 1.18, weather: 1, credibility: 1, freshness: 1, personal: 1 },
+  focus: { news: 1.35, aljazeera: 1.25, anime: 0.45, league: 0.45, nhk: 1.45, weather: 1.05, credibility: 1.35, freshness: 0.95, personal: 0.7 },
+  culture: { news: 0.65, aljazeera: 0.75, anime: 1.45, league: 1.35, nhk: 0.9, weather: 0.85, credibility: 0.9, freshness: 1.05, personal: 1.15 },
+  night: { news: 0.55, aljazeera: 0.65, anime: 1.55, league: 1.3, nhk: 0.8, weather: 1.15, credibility: 0.85, freshness: 0.85, personal: 1.25 }
 };
 
 const proxy = url => `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`;
@@ -54,6 +69,26 @@ function cleanText(text = '') {
     .trim();
 }
 
+function extractImage(item, source) {
+  const candidates = [
+    item.thumbnail,
+    item.enclosure?.link,
+    item.enclosure?.url,
+    item.content,
+    item.description
+  ].filter(Boolean);
+
+  for (const value of candidates) {
+    if (typeof value === 'string' && /^https?:\/\/.*\.(jpg|jpeg|png|webp)/i.test(value)) return value;
+    if (typeof value === 'string') {
+      const match = value.match(/<img[^>]+src=["']([^"']+)["']/i);
+      if (match?.[1]) return match[1];
+    }
+  }
+
+  return source.image;
+}
+
 function getFreshness(dateString) {
   if (!dateString) return 0.45;
   const date = new Date(dateString);
@@ -65,8 +100,7 @@ function getFreshness(dateString) {
 function getPersonalSignal(post) {
   const typeSignal = state.interactions[`type:${post.type}`] || 0;
   const sourceSignal = state.interactions[`source:${post.source}`] || 0;
-  const saveSignal = state.saved.includes(post.url) ? 4 : 0;
-  return clamp((typeSignal * 0.35 + sourceSignal * 0.45 + saveSignal) / 10, 0, 1.25);
+  return clamp((typeSignal * 0.35 + sourceSignal * 0.45) / 10, 0, 1.25);
 }
 
 function getClickbaitPenalty(post) {
@@ -81,35 +115,33 @@ function getModeWeight(post) {
 }
 
 function computeScore(post) {
+  if (post.pinned) return 2;
   const profile = modeProfiles[state.mode] || modeProfiles.balanced;
   const userPref = state.prefs[post.type] ?? 1;
   const personal = getPersonalSignal(post);
   const penalty = getClickbaitPenalty(post);
-  const sourcePenalty = state.hiddenSources.includes(post.source) ? 0.25 : 0;
 
   const score = (
-    post.credibility * 0.42 * profile.credibility +
-    post.freshness * 0.24 * profile.freshness +
+    post.credibility * 0.48 * profile.credibility +
+    post.freshness * 0.26 * profile.freshness +
     userPref * 0.12 +
     getModeWeight(post) * 0.10 +
-    personal * 0.12 * profile.personal -
-    penalty -
-    sourcePenalty
+    personal * 0.04 * profile.personal -
+    penalty
   );
 
-  return clamp(score, 0, 1.5);
+  return clamp(score, 0, 2);
 }
 
 function explain(post) {
+  if (post.pinned) return 'pinned live context · useful for seeing what is happening now';
   const reasons = [];
   if (post.credibility >= 0.9) reasons.push('trusted source');
   if (post.freshness >= 0.78) reasons.push('fresh');
-  if ((state.prefs[post.type] || 1) > 1.15) reasons.push('you boosted this lane');
-  if (getPersonalSignal(post) > 0.25) reasons.push('learned from your behavior');
   if (getModeWeight(post) > 1.15) reasons.push(`${state.mode} mode favors this`);
   if (getClickbaitPenalty(post)) reasons.push('clickbait penalty applied');
   if (post.fallback) reasons.push('fallback source card');
-  return reasons.length ? reasons.join(' · ') : 'balanced credibility, freshness, and taste';
+  return reasons.length ? reasons.join(' · ') : 'curated for credibility, freshness, and fit';
 }
 
 function track(key, amount = 1) {
@@ -150,7 +182,8 @@ async function loadLiveFeeds() {
         freshness: getFreshness(item.pubDate),
         published: item.pubDate,
         url: item.link || source.homepage,
-        summary: cleanText(item.description || item.content || '').slice(0, 220)
+        summary: cleanText(item.description || item.content || '').slice(0, 220),
+        image: extractImage(item, source)
       }));
     } catch (error) {
       console.warn(`${source.name} failed`, error);
@@ -163,8 +196,8 @@ async function loadLiveFeeds() {
   const livePosts = results.flatMap(result => result.status === 'fulfilled' ? result.value : []);
 
   const seen = new Set();
-  state.posts = [...livePosts, ...fallbackPosts].filter(post => {
-    const key = post.url || post.title;
+  state.posts = [nhkLiveCard, ...(state.weatherPost ? [state.weatherPost] : []), ...livePosts, ...fallbackPosts].filter(post => {
+    const key = post.id || post.url || post.title;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -176,30 +209,21 @@ async function loadLiveFeeds() {
 }
 
 function getCuratedPosts() {
-  let curated = [...state.posts];
-
-  const search = $('#searchInput')?.value.toLowerCase().trim();
-  if (search) {
-    curated = curated.filter(post => [post.title, post.summary, post.source, post.type].join(' ').toLowerCase().includes(search));
-  }
-
-  const sort = $('#sortSelect')?.value || 'signal';
-  if (sort === 'signal') curated.sort((a, b) => computeScore(b) - computeScore(a));
-  if (sort === 'newest') curated.sort((a, b) => new Date(b.published || 0) - new Date(a.published || 0));
-  if (sort === 'credibility') curated.sort((a, b) => b.credibility - a.credibility || computeScore(b) - computeScore(a));
-  if (sort === 'personal') curated.sort((a, b) => getPersonalSignal(b) - getPersonalSignal(a) || computeScore(b) - computeScore(a));
-
+  const curated = [...state.posts];
+  curated.sort((a, b) => computeScore(b) - computeScore(a));
   return curated;
 }
 
 function renderLoading() {
   $('#feed').innerHTML = Array.from({ length: 8 }).map(() => `
-    <article class="card skeleton-card">
-      <div class="skeleton short"></div>
-      <div class="skeleton title"></div>
-      <div class="skeleton line"></div>
-      <div class="skeleton line"></div>
-      <div class="skeleton pill"></div>
+    <article class="card article-card skeleton-card">
+      <div class="media-wrap skeleton-media"></div>
+      <div class="card-body">
+        <div class="skeleton short"></div>
+        <div class="skeleton title"></div>
+        <div class="skeleton line"></div>
+        <div class="skeleton line"></div>
+      </div>
     </article>
   `).join('');
 }
@@ -207,16 +231,13 @@ function renderLoading() {
 function renderSourceStrip() {
   const strip = $('#sourceStrip');
   if (!strip) return;
-  strip.innerHTML = sources.map(source => {
-    const status = state.sourceStatus[source.name] || 'waiting';
-    return `<span class="source-chip ${status}">${source.name}<b>${status}</b></span>`;
+  strip.innerHTML = ['NHK Live', ...sources.map(source => source.name)].map(name => {
+    const status = name === 'NHK Live' ? 'live' : (state.sourceStatus[name] || 'waiting');
+    return `<span class="source-chip ${status}">${name}<b>${status}</b></span>`;
   }).join('');
 
-  const liveCount = Object.values(state.sourceStatus).filter(status => status === 'live').length;
-  $('#sourceCount').textContent = `${liveCount}/${sources.length} live`;
-  $('#postCount').textContent = `${state.posts.length} items`;
-  const savedCount = $('#savedCount');
-  if (savedCount) savedCount.textContent = `${state.saved.length} saved`;
+  const postCount = $('#postCount');
+  if (postCount) postCount.textContent = `${state.posts.length || 0} curated items`;
 }
 
 function render() {
@@ -226,53 +247,34 @@ function render() {
   const visible = curated.slice(0, state.visibleCount);
   feed.innerHTML = '';
 
-  if (!visible.length) {
-    feed.innerHTML = '<article class="card spotlight-card"><h3>No signal here yet.</h3><p class="summary">Try another search, refresh, or change the mode.</p></article>';
-    return;
-  }
-
   visible.forEach((post, index) => {
     const node = $('#cardTemplate').content.cloneNode(true);
     const score = computeScore(post);
-    node.querySelector('h3').textContent = post.title;
+    const card = node.querySelector('.card');
+    const image = node.querySelector('.post-image');
+    const mediaWrap = node.querySelector('.media-wrap');
+
+    if (post.embed) {
+      card.classList.add('live-card');
+      mediaWrap.innerHTML = `<iframe title="NHK WORLD-JAPAN Live" src="${post.embed}" loading="lazy" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+    } else {
+      image.src = post.image;
+      image.alt = `${post.source} article image`;
+    }
+
+    node.querySelector('h2').textContent = post.title;
     node.querySelector('.tag').textContent = post.type;
     node.querySelector('.score').textContent = `#${index + 1} · ${score.toFixed(2)}`;
     node.querySelector('.summary').textContent = post.summary || 'Open the original source for the full story.';
     node.querySelector('.meta').textContent = `${post.source} · ${relativeDate(post.published)}`;
-    node.querySelector('.why').textContent = `why: ${explain(post)}`;
+    node.querySelector('.why').textContent = explain(post);
 
     const readLink = node.querySelector('.read-link');
     readLink.href = post.url;
+    readLink.textContent = post.embed ? 'Open NHK live' : 'Open story';
     readLink.addEventListener('click', () => {
       track(`type:${post.type}`, 1);
       track(`source:${post.source}`, 1);
-    });
-
-    const saveButton = node.querySelector('.save-button');
-    saveButton.textContent = state.saved.includes(post.url) ? 'Saved' : 'Save';
-    saveButton.addEventListener('click', () => {
-      if (state.saved.includes(post.url)) state.saved = state.saved.filter(url => url !== post.url);
-      else state.saved.push(post.url);
-      localStorage.setItem('saved', JSON.stringify(state.saved));
-      track(`type:${post.type}`, 2);
-      track(`source:${post.source}`, 1);
-      renderSourceStrip();
-      render();
-    });
-
-    node.querySelector('.boost-button').addEventListener('click', () => {
-      state.prefs[post.type] = clamp((state.prefs[post.type] || 1) + 0.1, 0, 2);
-      localStorage.setItem('prefs', JSON.stringify(state.prefs));
-      syncPreferenceInputs();
-      track(`type:${post.type}`, 1);
-      render();
-    });
-
-    node.querySelector('.mute-button').addEventListener('click', () => {
-      state.prefs[post.type] = clamp((state.prefs[post.type] || 1) - 0.1, 0, 2);
-      localStorage.setItem('prefs', JSON.stringify(state.prefs));
-      syncPreferenceInputs();
-      render();
     });
 
     feed.appendChild(node);
@@ -290,12 +292,6 @@ function render() {
   }
 }
 
-function syncPreferenceInputs() {
-  $$('[data-pref]').forEach(slider => {
-    slider.value = state.prefs[slider.dataset.pref] ?? 1;
-  });
-}
-
 function setMode(mode) {
   state.mode = mode;
   localStorage.setItem('mode', mode);
@@ -306,28 +302,7 @@ function setMode(mode) {
 
 function setupEvents() {
   $$('.mode-chip').forEach(button => button.addEventListener('click', () => setMode(button.dataset.mode)));
-  $('#searchInput').addEventListener('input', () => { state.visibleCount = 12; render(); });
-  $('#sortSelect').addEventListener('change', () => { state.visibleCount = 12; render(); });
   $('#refreshButton').addEventListener('click', loadLiveFeeds);
-
-  $$('[data-pref]').forEach(slider => {
-    slider.addEventListener('input', () => {
-      state.prefs[slider.dataset.pref] = parseFloat(slider.value);
-      localStorage.setItem('prefs', JSON.stringify(state.prefs));
-      state.visibleCount = 12;
-      render();
-    });
-  });
-
-  $('#resetLearning').addEventListener('click', () => {
-    state.interactions = {};
-    state.prefs = { news: 1, aljazeera: 1, anime: 1, league: 1 };
-    localStorage.setItem('prefs', JSON.stringify(state.prefs));
-    localStorage.removeItem('interactions');
-    syncPreferenceInputs();
-    render();
-  });
-
   $('#weatherButton').addEventListener('click', loadWeather);
 
   window.addEventListener('scroll', () => {
@@ -343,41 +318,41 @@ function setupEvents() {
 }
 
 function loadWeather() {
-  const temp = $('#weatherTemp');
-  const detail = $('#weatherDetail');
   const button = $('#weatherButton');
 
   if (!navigator.geolocation) {
-    temp.textContent = 'Location unavailable';
-    detail.textContent = 'Your browser does not support geolocation.';
+    button.textContent = 'Weather unavailable';
     return;
   }
 
-  button.textContent = 'Loading...';
+  button.textContent = 'Loading weather...';
   navigator.geolocation.getCurrentPosition(position => {
     const { latitude, longitude } = position.coords;
     fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&temperature_unit=fahrenheit`)
       .then(response => response.json())
       .then(data => {
         const current = data.current_weather;
-        temp.textContent = `${Math.round(current.temperature)}°F`;
-        detail.textContent = `${Math.round(current.windspeed)} mph wind · updated now`;
-        button.textContent = 'Refresh weather';
+        state.weatherPost = {
+          id: 'local-weather',
+          title: `${Math.round(current.temperature)}°F right now`,
+          type: 'weather',
+          source: 'Open-Meteo',
+          credibility: 0.84,
+          freshness: 1,
+          published: new Date().toISOString(),
+          url: 'https://open-meteo.com/',
+          summary: `${Math.round(current.windspeed)} mph wind. This local weather card is folded into your scroll instead of taking up a giant block.`,
+          image: 'https://images.unsplash.com/photo-1504608524841-42fe6f032b4b?auto=format&fit=crop&w=1200&q=80'
+        };
+        button.textContent = 'Weather loaded';
+        state.posts = [nhkLiveCard, state.weatherPost, ...state.posts.filter(post => post.id !== 'nhk-live' && post.id !== 'local-weather')];
+        render();
       })
-      .catch(() => {
-        temp.textContent = 'Weather unavailable';
-        detail.textContent = 'Open-Meteo did not respond.';
-        button.textContent = 'Try again';
-      });
-  }, () => {
-    temp.textContent = 'Location blocked';
-    detail.textContent = 'Allow location access to see local weather.';
-    button.textContent = 'Try again';
-  });
+      .catch(() => { button.textContent = 'Weather failed'; });
+  }, () => { button.textContent = 'Location blocked'; });
 }
 
 function init() {
-  syncPreferenceInputs();
   setMode(state.mode);
   setupEvents();
   loadLiveFeeds();
