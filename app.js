@@ -1,7 +1,7 @@
 const state = {
-  tab: 'all',
   mode: localStorage.getItem('mode') || 'balanced',
   posts: [],
+  visibleCount: 12,
   sourceStatus: {},
   saved: JSON.parse(localStorage.getItem('saved') || '[]'),
   prefs: JSON.parse(localStorage.getItem('prefs') || '{"news":1,"aljazeera":1,"anime":1,"league":1}'),
@@ -43,9 +43,7 @@ const proxy = url => `https://api.rss2json.com/v1/api.json?rss_url=${encodeURICo
 const $ = selector => document.querySelector(selector);
 const $$ = selector => Array.from(document.querySelectorAll(selector));
 
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
+function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
 function cleanText(text = '') {
   const div = document.createElement('div');
@@ -106,7 +104,7 @@ function explain(post) {
   const reasons = [];
   if (post.credibility >= 0.9) reasons.push('trusted source');
   if (post.freshness >= 0.78) reasons.push('fresh');
-  if ((state.prefs[post.type] || 1) > 1.15) reasons.push('you boosted this topic');
+  if ((state.prefs[post.type] || 1) > 1.15) reasons.push('you boosted this lane');
   if (getPersonalSignal(post) > 0.25) reasons.push('learned from your behavior');
   if (getModeWeight(post) > 1.15) reasons.push(`${state.mode} mode favors this`);
   if (getClickbaitPenalty(post)) reasons.push('clickbait penalty applied');
@@ -130,6 +128,7 @@ function relativeDate(dateString) {
 
 async function loadLiveFeeds() {
   state.isLoading = true;
+  state.visibleCount = 12;
   renderLoading();
   renderSourceStrip();
 
@@ -142,7 +141,7 @@ async function loadLiveFeeds() {
       if (!Array.isArray(data.items)) throw new Error('No RSS items');
 
       state.sourceStatus[source.name] = 'live';
-      return data.items.slice(0, 8).map(item => ({
+      return data.items.slice(0, 12).map(item => ({
         id: item.guid || item.link || `${source.name}-${item.title}`,
         title: cleanText(item.title) || source.name,
         type: source.type,
@@ -164,38 +163,33 @@ async function loadLiveFeeds() {
   const livePosts = results.flatMap(result => result.status === 'fulfilled' ? result.value : []);
 
   const seen = new Set();
-  state.posts = [...livePosts, ...fallbackPosts]
-    .filter(post => {
-      const key = post.url || post.title;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+  state.posts = [...livePosts, ...fallbackPosts].filter(post => {
+    const key = post.url || post.title;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 
   state.isLoading = false;
   renderSourceStrip();
   render();
 }
 
-function getFilteredPosts() {
-  let filtered = [...state.posts];
-
-  if (state.tab === 'saved') filtered = filtered.filter(post => state.saved.includes(post.url));
-  else if (state.tab === 'weather') filtered = [];
-  else if (state.tab !== 'all') filtered = filtered.filter(post => post.type === state.tab);
+function getCuratedPosts() {
+  let curated = [...state.posts];
 
   const search = $('#searchInput')?.value.toLowerCase().trim();
   if (search) {
-    filtered = filtered.filter(post => [post.title, post.summary, post.source, post.type].join(' ').toLowerCase().includes(search));
+    curated = curated.filter(post => [post.title, post.summary, post.source, post.type].join(' ').toLowerCase().includes(search));
   }
 
   const sort = $('#sortSelect')?.value || 'signal';
-  if (sort === 'signal') filtered.sort((a, b) => computeScore(b) - computeScore(a));
-  if (sort === 'newest') filtered.sort((a, b) => new Date(b.published || 0) - new Date(a.published || 0));
-  if (sort === 'credibility') filtered.sort((a, b) => b.credibility - a.credibility || computeScore(b) - computeScore(a));
-  if (sort === 'personal') filtered.sort((a, b) => getPersonalSignal(b) - getPersonalSignal(a) || computeScore(b) - computeScore(a));
+  if (sort === 'signal') curated.sort((a, b) => computeScore(b) - computeScore(a));
+  if (sort === 'newest') curated.sort((a, b) => new Date(b.published || 0) - new Date(a.published || 0));
+  if (sort === 'credibility') curated.sort((a, b) => b.credibility - a.credibility || computeScore(b) - computeScore(a));
+  if (sort === 'personal') curated.sort((a, b) => getPersonalSignal(b) - getPersonalSignal(a) || computeScore(b) - computeScore(a));
 
-  return filtered;
+  return curated;
 }
 
 function renderLoading() {
@@ -220,42 +214,29 @@ function renderSourceStrip() {
 
   const liveCount = Object.values(state.sourceStatus).filter(status => status === 'live').length;
   $('#sourceCount').textContent = `${liveCount}/${sources.length} live`;
-  $('#postCount').textContent = `${state.posts.length} posts`;
-}
-
-function renderWeatherTab() {
-  $('#feed').innerHTML = `
-    <article class="card spotlight-card">
-      <div class="card-topline"><span class="tag">weather</span><span class="score">local</span></div>
-      <h3>Your local weather sits in the hero card.</h3>
-      <p class="summary">Tap “Load local weather” above to pull live temperature and wind from Open-Meteo using your browser location.</p>
-      <p class="why">why: weather is contextual, not part of the article ranking system</p>
-    </article>
-  `;
+  $('#postCount').textContent = `${state.posts.length} items`;
+  const savedCount = $('#savedCount');
+  if (savedCount) savedCount.textContent = `${state.saved.length} saved`;
 }
 
 function render() {
   if (state.isLoading) return;
-  if (state.tab === 'weather') {
-    renderWeatherTab();
-    return;
-  }
-
   const feed = $('#feed');
-  const filtered = getFilteredPosts();
+  const curated = getCuratedPosts();
+  const visible = curated.slice(0, state.visibleCount);
   feed.innerHTML = '';
 
-  if (!filtered.length) {
-    feed.innerHTML = '<article class="card spotlight-card"><h3>No signal here yet.</h3><p class="summary">Try another tab, search, refresh, or save a few items to teach the feed.</p></article>';
+  if (!visible.length) {
+    feed.innerHTML = '<article class="card spotlight-card"><h3>No signal here yet.</h3><p class="summary">Try another search, refresh, or change the mode.</p></article>';
     return;
   }
 
-  filtered.forEach(post => {
+  visible.forEach((post, index) => {
     const node = $('#cardTemplate').content.cloneNode(true);
     const score = computeScore(post);
     node.querySelector('h3').textContent = post.title;
     node.querySelector('.tag').textContent = post.type;
-    node.querySelector('.score').textContent = `signal ${score.toFixed(2)}`;
+    node.querySelector('.score').textContent = `#${index + 1} · ${score.toFixed(2)}`;
     node.querySelector('.summary').textContent = post.summary || 'Open the original source for the full story.';
     node.querySelector('.meta').textContent = `${post.source} · ${relativeDate(post.published)}`;
     node.querySelector('.why').textContent = `why: ${explain(post)}`;
@@ -275,6 +256,7 @@ function render() {
       localStorage.setItem('saved', JSON.stringify(state.saved));
       track(`type:${post.type}`, 2);
       track(`source:${post.source}`, 1);
+      renderSourceStrip();
       render();
     });
 
@@ -295,6 +277,17 @@ function render() {
 
     feed.appendChild(node);
   });
+
+  if (state.visibleCount < curated.length) {
+    const more = document.createElement('button');
+    more.className = 'load-more';
+    more.textContent = 'Keep scrolling';
+    more.addEventListener('click', () => {
+      state.visibleCount += 10;
+      render();
+    });
+    feed.appendChild(more);
+  }
 }
 
 function syncPreferenceInputs() {
@@ -303,30 +296,25 @@ function syncPreferenceInputs() {
   });
 }
 
-function setTab(tab) {
-  state.tab = tab;
-  $$('.nav-item').forEach(button => button.classList.toggle('active', button.dataset.tab === tab));
-  render();
-}
-
 function setMode(mode) {
   state.mode = mode;
   localStorage.setItem('mode', mode);
   $$('.mode-chip').forEach(button => button.classList.toggle('active', button.dataset.mode === mode));
+  state.visibleCount = 12;
   render();
 }
 
 function setupEvents() {
-  $$('.nav-item').forEach(button => button.addEventListener('click', () => setTab(button.dataset.tab)));
   $$('.mode-chip').forEach(button => button.addEventListener('click', () => setMode(button.dataset.mode)));
-  $('#searchInput').addEventListener('input', render);
-  $('#sortSelect').addEventListener('change', render);
+  $('#searchInput').addEventListener('input', () => { state.visibleCount = 12; render(); });
+  $('#sortSelect').addEventListener('change', () => { state.visibleCount = 12; render(); });
   $('#refreshButton').addEventListener('click', loadLiveFeeds);
 
   $$('[data-pref]').forEach(slider => {
     slider.addEventListener('input', () => {
       state.prefs[slider.dataset.pref] = parseFloat(slider.value);
       localStorage.setItem('prefs', JSON.stringify(state.prefs));
+      state.visibleCount = 12;
       render();
     });
   });
@@ -341,6 +329,17 @@ function setupEvents() {
   });
 
   $('#weatherButton').addEventListener('click', loadWeather);
+
+  window.addEventListener('scroll', () => {
+    const nearBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 700;
+    if (nearBottom && !state.isLoading) {
+      const total = getCuratedPosts().length;
+      if (state.visibleCount < total) {
+        state.visibleCount += 6;
+        render();
+      }
+    }
+  }, { passive: true });
 }
 
 function loadWeather() {
