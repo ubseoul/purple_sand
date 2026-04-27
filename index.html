@@ -1,27 +1,81 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Purple Sand</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta name="description" content="A calmer personal Reddit for reputable news, anime, League of Legends, Al Jazeera, and local weather." />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header>
-    <h1>Purple Sand</h1>
-    <p>high signal. low noise.</p>
-  </header>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">PS</div>
+        <div>
+          <h1>Purple Sand</h1>
+          <p>Your signal-first internet.</p>
+        </div>
+      </div>
 
-  <nav>
-    <button onclick="setTab('all')">All</button>
-    <button onclick="setTab('news')">News</button>
-    <button onclick="setTab('aljazeera')">Al Jazeera</button>
-    <button onclick="setTab('anime')">Anime</button>
-    <button onclick="setTab('league')">League</button>
-    <button onclick="setTab('weather')">Weather</button>
-  </nav>
+      <nav class="nav" aria-label="Feed categories">
+        <button class="nav-item active" data-tab="all">For You</button>
+        <button class="nav-item" data-tab="news">Reputable News</button>
+        <button class="nav-item" data-tab="aljazeera">Al Jazeera</button>
+        <button class="nav-item" data-tab="anime">Anime</button>
+        <button class="nav-item" data-tab="league">League</button>
+        <button class="nav-item" data-tab="weather">Weather</button>
+        <button class="nav-item" data-tab="saved">Saved</button>
+      </nav>
 
-  <main id="feed"></main>
+      <section class="source-panel">
+        <h2>Source rules</h2>
+        <p>Prefer primary reporting, transparent corrections, clear sourcing, and low outrage bait.</p>
+      </section>
+    </aside>
+
+    <main class="main-content">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">private feed prototype</p>
+          <h2>Reddit energy without Reddit rot.</h2>
+          <p class="hero-copy">A personal dashboard that mixes credible headlines, niche culture, esports, and local weather into one intentional feed.</p>
+        </div>
+        <div class="weather-widget" id="weatherWidget">
+          <span class="muted">Weather</span>
+          <strong id="weatherTemp">Use my location</strong>
+          <button id="weatherButton">Load local weather</button>
+        </div>
+      </section>
+
+      <section class="controls">
+        <input id="searchInput" type="search" placeholder="Search your feed..." aria-label="Search feed" />
+        <select id="sortSelect" aria-label="Sort feed">
+          <option value="signal">Sort by signal</option>
+          <option value="newest">Sort by newest</option>
+          <option value="credibility">Sort by credibility</option>
+        </select>
+      </section>
+
+      <section id="feed" class="feed" aria-live="polite"></section>
+    </main>
+  </div>
+
+  <template id="cardTemplate">
+    <article class="card">
+      <div class="card-topline">
+        <span class="tag"></span>
+        <span class="score"></span>
+      </div>
+      <h3></h3>
+      <p class="summary"></p>
+      <div class="meta"></div>
+      <div class="actions">
+        <a target="_blank" rel="noopener noreferrer">Read source</a>
+        <button class="save-button">Save</button>
+      </div>
+    </article>
+  </template>
 
   <script src="app.js"></script>
 </body>
