@@ -37,9 +37,9 @@
     <main class="main-content">
       <section class="hero">
         <div>
-          <p class="eyebrow">private feed prototype</p>
+          <p class="eyebrow">adaptive private feed</p>
           <h2>Reddit energy without Reddit rot.</h2>
-          <p class="hero-copy">A personal dashboard that mixes credible headlines, niche culture, esports, and local weather into one intentional feed.</p>
+          <p class="hero-copy">Purple Sand now learns from what you open and save, then ranks stories by credibility, freshness, taste, and calm signal.</p>
         </div>
         <div class="weather-widget" id="weatherWidget">
           <span class="muted">Weather</span>
@@ -48,10 +48,22 @@
         </div>
       </section>
 
+      <section class="intelligence-panel" aria-label="Feed intelligence controls">
+        <div>
+          <p class="eyebrow">signal engine</p>
+          <h3>Teach the feed what matters today.</h3>
+        </div>
+        <label>News <input type="range" min="0" max="2" step="0.1" value="1" data-pref="news"></label>
+        <label>Al Jazeera <input type="range" min="0" max="2" step="0.1" value="1" data-pref="aljazeera"></label>
+        <label>Anime <input type="range" min="0" max="2" step="0.1" value="1" data-pref="anime"></label>
+        <label>League <input type="range" min="0" max="2" step="0.1" value="1" data-pref="league"></label>
+        <button id="resetLearning">Reset learning</button>
+      </section>
+
       <section class="controls">
         <input id="searchInput" type="search" placeholder="Search your feed..." aria-label="Search feed" />
         <select id="sortSelect" aria-label="Sort feed">
-          <option value="signal">Sort by signal</option>
+          <option value="signal">Sort by smart signal</option>
           <option value="newest">Sort by newest</option>
           <option value="credibility">Sort by credibility</option>
         </select>
@@ -70,6 +82,7 @@
       <h3></h3>
       <p class="summary"></p>
       <div class="meta"></div>
+      <p class="why"></p>
       <div class="actions">
         <a target="_blank" rel="noopener noreferrer">Read source</a>
         <button class="save-button">Save</button>
